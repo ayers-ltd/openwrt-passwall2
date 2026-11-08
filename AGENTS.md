@@ -23,6 +23,7 @@
 - 此流程只测试 LuCI 软件包及中文语言包的 IPK 打包；不构建完整固件、不保证代理核心已编译，不覆盖 APK、其他架构或路由器运行效果。
 - 产物在 Actions artifacts 中保留 7 天，包含 IPK、构建日志、最终 `.config`、源码提交和 feed 版本。失败时优先查看失败 step、`build.log` 与配置；环境初始化失败时可能没有完整产物。
 - SDK 固定版本，但附加 PassWall 依赖 feed 跟踪 main，存在上游依赖变化；排查时记录 artifact 中的 feed 提交。
+- SDK 使用分段下载和按 SHA256 区分的 Actions 缓存，缓存命中后仍执行校验；升级 SDK 时同步更新 URL、文件名和 SHA256。
 
 常用命令（在项目目录执行）：
 
