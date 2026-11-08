@@ -28,6 +28,7 @@ jobs:
       SDK_BASE_URL: https://downloads.openwrt.org/releases/24.10.4/targets/x86/64
       SDK_ARCHIVE: openwrt-sdk-24.10.4-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
       SDK_SHA256: 229e871f734a2cee5ce3ad6a3e98d3836b0899bfdeaea4d9c2c5cc7b1fce1407
+      GOLANG_FEED_COMMIT: d476ff893f1aa18cc8b2833bc896048ae05fd7e7
     defaults:
       run:
         shell: bash
@@ -75,6 +76,18 @@ jobs:
           # Use the SDK's matching feeds, plus PassWall's dependency definitions.
           echo 'src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main' >> feeds.conf.default
           ./scripts/feeds update -a
+          # Current geoview requires Go >= 1.25; the 24.10 feed supplies Go 1.23.
+          # Match upstream's toolchain update, pinned to a reviewed feed commit.
+          toolchain_source="$RUNNER_TEMP/packages-toolchain"
+          git init "$toolchain_source"
+          git -C "$toolchain_source" remote add origin https://github.com/openwrt/packages.git
+          git -C "$toolchain_source" sparse-checkout init --cone
+          git -C "$toolchain_source" sparse-checkout set lang/golang
+          git -C "$toolchain_source" fetch --depth=1 origin "$GOLANG_FEED_COMMIT"
+          git -C "$toolchain_source" checkout --detach FETCH_HEAD
+          rm -rf feeds/packages/lang/golang
+          cp -a "$toolchain_source/lang/golang" feeds/packages/lang/
+          ./scripts/feeds update -i packages
           ./scripts/feeds install -a
           # Build the checked-out commit (including PR changes), not the remote main branch.
           mkdir -p package/passwall2
@@ -82,6 +95,7 @@ jobs:
           {
             echo "source_commit=$GITHUB_SHA"
             echo "sdk=$SDK_ARCHIVE"
+            echo "golang_feed_commit=$GOLANG_FEED_COMMIT"
             for feed in feeds/*; do
               if [ -d "$feed/.git" ] || [ -f "$feed/.git" ]; then
                 echo "$(basename "$feed")=$(git -C "$feed" rev-parse HEAD)"
